@@ -3,8 +3,8 @@
 
    SETUP: Fill in these two lines before deploying:
 ═══════════════════════════════════════════════════════════════════════════ */
-const CLIENT_ID    = 'your_spotify_client_id_here';
-const REDIRECT_URI = 'https://YOUR_USERNAME.github.io/MusicSearch/';
+const CLIENT_ID    = '49f2865ca36d41a198d4c7d0256723ed';
+const REDIRECT_URI = 'https://nkgoma.github.io/MusicSearch/';
 
 /* ── Spotify scopes needed ──────────────────────────────────────────────── */
 const SCOPES = [
