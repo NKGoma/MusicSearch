@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Norster 🎵</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SCREEN 1 — LOGIN
+  ════════════════════════════════════════════════════════ -->
+  <div id="screen-login" class="screen active">
+    <div class="center-card">
+      <div class="logo">🎵</div>
+      <h1>Norster</h1>
+      <p class="subtitle">The music timeline party game</p>
+      <a href="/login" class="btn btn-green">Connect Spotify</a>
+      <p class="hint">You'll be taken to Spotify to log in, then come right back.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SCREEN 2 — CHOOSE PLAYLIST
+  ════════════════════════════════════════════════════════ -->
+  <div id="screen-playlists" class="screen">
+    <div class="top-bar">
+      <h2>Choose a Playlist</h2>
+    </div>
+    <div id="playlist-grid" class="playlist-grid">
+      <!-- Playlist cards injected by app.js -->
+      <p class="loading-msg">Loading your playlists…</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SCREEN 3 — PLAYER SETUP
+  ════════════════════════════════════════════════════════ -->
+  <div id="screen-setup" class="screen">
+    <div class="center-card wide">
+      <button class="btn-back" onclick="App.backToPlaylists()">← Back to playlists</button>
+      <h2>Who's playing?</h2>
+
+      <label>Number of players</label>
+      <div class="number-row">
+        <button class="btn-round" onclick="App.changePlayerCount(-1)">−</button>
+        <span id="player-count-display">2</span>
+        <button class="btn-round" onclick="App.changePlayerCount(1)">+</button>
+      </div>
+
+      <div id="player-names">
+        <!-- Name inputs injected by app.js -->
+      </div>
+
+      <button class="btn btn-green big" onclick="App.startGame()">Start Game ▶</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SCREEN 4 — GAME
+  ════════════════════════════════════════════════════════ -->
+  <div id="screen-game" class="screen">
+
+    <!-- Top info bar -->
+    <div class="game-topbar">
+      <div id="current-player-label" class="current-player-label">Player 1's turn</div>
+      <div id="token-bar" class="token-bar">
+        <!-- Token displays injected by app.js -->
+      </div>
+    </div>
+
+    <!-- Song card (mystery / revealed) -->
+    <div class="song-card-area">
+      <div id="song-card" class="song-card mystery">
+        <div class="mystery-side">
+          <div class="mystery-icon">🎵</div>
+          <div class="mystery-text">Song Playing…</div>
+          <div class="mystery-sub">Listen and place it on your timeline!</div>
+        </div>
+        <div class="reveal-side">
+          <div id="reveal-year" class="reveal-year">—</div>
+          <div id="reveal-title" class="reveal-title">—</div>
+          <div id="reveal-artist" class="reveal-artist">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="game-controls">
+      <button id="btn-play-pause" class="btn btn-white" onclick="App.togglePlayPause()">⏸ Pause</button>
+      <button id="btn-reveal" class="btn btn-yellow" onclick="App.reveal()">Reveal 🔍</button>
+      <button id="btn-next" class="btn btn-green hidden" onclick="App.nextPlayer()">Next Player →</button>
+    </div>
+
+    <div class="game-secondary-controls">
+      <button class="btn btn-small btn-dim" onclick="App.useToken()">Use Token 🪙 (skip song)</button>
+      <button class="btn btn-small btn-dim" onclick="App.backToPlaylists()">← Change Playlist</button>
+    </div>
+
+    <!-- Device warning (shown if Spotify desktop not detected) -->
+    <div id="device-warning" class="device-warning hidden">
+      <p>⚠️ No active Spotify device found.<br>
+         Please open Spotify on your Mac and play anything briefly, then come back.</p>
+      <button class="btn btn-small btn-white" onclick="App.retryDevice()">Try again</button>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

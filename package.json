@@ -1,0 +1,14 @@
+{
+  "name": "norster",
+  "version": "1.0.0",
+  "description": "Norster - a party music timeline game powered by Spotify",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "node-fetch": "^2.7.0"
+  }
+}
