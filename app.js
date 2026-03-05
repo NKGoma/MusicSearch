@@ -192,7 +192,7 @@ async function selectPlaylist(playlist) {
 
   try {
     const data  = await spotifyFetch('GET',
-      `/playlists/${playlist.id}/tracks?limit=100&fields=items(track(name,uri,artists,album(release_date,images)))`
+      `/playlists/${playlist.id}/tracks?limit=100`
     );
     const items = (data.items || []).filter(i => i && i.track && i.track.uri);
     state.tracks = shuffle(items.map(i => ({
