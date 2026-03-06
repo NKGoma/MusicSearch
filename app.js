@@ -209,30 +209,37 @@ async function selectPlaylist(playlist) {
   renderPlayerInputs(state.playerCount);
 
   try {
-    const tracksUrl = playlist.tracks?.href
-      ? playlist.tracks.href + '?limit=100'
-      : `https://api.spotify.com/v1/playlists/${playlist.id}/tracks?limit=100`;
+    let items = null;
 
-    const res = await fetch(tracksUrl, {
-      headers: { Authorization: 'Bearer ' + state.accessToken },
-    });
+    // Try the full playlist object first — different URL from /tracks, may not be blocked
+    const plRes = await fetch(
+      `https://api.spotify.com/v1/playlists/${playlist.id}?fields=tracks.items(track(name,uri,artists,album,is_local))`,
+      { headers: { Authorization: 'Bearer ' + state.accessToken } }
+    );
 
-    if (res.status === 403) {
-      alert("Spotify needs permission to read this playlist. You'll be taken to log in again.");
-      startLogin();
-      return;
+    if (plRes.ok) {
+      const plData = await plRes.json();
+      items = plData.tracks?.items || [];
+    } else {
+      // Endpoint blocked (403) or other server error — silently fall back to liked songs.
+      // Do NOT call startLogin() here: the 403 is a permanent Spotify restriction for this
+      // app, not an auth issue. Re-logging in never fixes it and creates an infinite loop.
+      console.warn('Playlist fetch failed (' + plRes.status + '), using liked songs as fallback');
+      const likedRes = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
+        headers: { Authorization: 'Bearer ' + state.accessToken },
+      });
+      if (!likedRes.ok) {
+        const errData = await likedRes.json().catch(() => ({}));
+        throw new Error(`${errData?.error?.message || 'Unknown error'} (HTTP ${likedRes.status})`);
+      }
+      const likedData = await likedRes.json();
+      items = likedData.items || [];
     }
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}));
-      throw new Error(`${errData?.error?.message || 'Unknown error'} (HTTP ${res.status})`);
-    }
-
-    const data = await res.json();
-    const items = (data.items || []).filter(i =>
+    const filtered = items.filter(i =>
       i && i.track && i.track.uri && i.track.album && !i.track.is_local
     );
-    state.tracks = shuffle(items.map(i => ({
+    state.tracks = shuffle(filtered.map(i => ({
       title:    i.track.name,
       artist:   i.track.artists.map(a => a.name).join(', '),
       year:     (i.track.album.release_date || '????').slice(0, 4),
