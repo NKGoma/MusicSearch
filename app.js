@@ -207,6 +207,13 @@ async function selectPlaylist(_playlist) {
       headers: { Authorization: 'Bearer ' + state.accessToken },
     });
 
+    if (res.status === 403) {
+      // Token is missing user-library-read scope — re-authorize to get it.
+      alert('Spotify needs one more permission. You\'ll be taken to log in again — this only happens once.');
+      startLogin();
+      return;
+    }
+
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
       throw new Error(`${errData?.error?.message || 'Unknown error'} (HTTP ${res.status})`);
@@ -310,6 +317,14 @@ async function playCurrentSong() {
 
 const App = {
   login: startLogin,
+
+  logout() {
+    state.accessToken = '';
+    state.userId = '';
+    state.tracks = [];
+    showScreen('screen-login');
+    startLogin();
+  },
 
   changePlayerCount(delta) {
     const next = Math.max(2, Math.min(10, state.playerCount + delta));
