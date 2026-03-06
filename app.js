@@ -208,12 +208,15 @@ async function selectPlaylist(playlist) {
   showScreen('screen-setup');
   renderPlayerInputs(state.playerCount);
 
+  const startBtn = $('btn-start-game');
+  if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'Loading tracks…'; }
+
   try {
     let items = null;
 
-    // Try the full playlist object first — different URL from /tracks, may not be blocked
+    // Try the full playlist object (no fields filter — avoids stripping album sub-fields)
     const plRes = await fetch(
-      `https://api.spotify.com/v1/playlists/${playlist.id}?fields=tracks.items(track(name,uri,artists,album,is_local))`,
+      `https://api.spotify.com/v1/playlists/${playlist.id}`,
       { headers: { Authorization: 'Bearer ' + state.accessToken } }
     );
 
@@ -221,9 +224,9 @@ async function selectPlaylist(playlist) {
       const plData = await plRes.json();
       items = plData.tracks?.items || [];
     } else {
-      // Endpoint blocked (403) or other server error — silently fall back to liked songs.
-      // Do NOT call startLogin() here: the 403 is a permanent Spotify restriction for this
-      // app, not an auth issue. Re-logging in never fixes it and creates an infinite loop.
+      // Endpoint blocked or other error — silently fall back to liked songs.
+      // Do NOT call startLogin() here: the 403 is a permanent Spotify restriction,
+      // not an auth issue; re-logging in never fixes it and causes an infinite loop.
       console.warn('Playlist fetch failed (' + plRes.status + '), using liked songs as fallback');
       const likedRes = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
         headers: { Authorization: 'Bearer ' + state.accessToken },
@@ -249,6 +252,8 @@ async function selectPlaylist(playlist) {
   } catch (err) {
     console.error('selectPlaylist error:', err);
     alert('Could not load tracks: ' + err.message);
+  } finally {
+    if (startBtn) { startBtn.disabled = false; startBtn.textContent = 'Start Game ▶'; }
   }
 }
 
