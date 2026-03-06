@@ -12,6 +12,7 @@ const SCOPES = [
   'playlist-read-collaborative',
   'user-read-playback-state',
   'user-modify-playback-state',
+  'user-library-read',
 ].join(' ');
 
 /* ── Game state ─────────────────────────────────────────────────────────── */
@@ -176,26 +177,18 @@ async function loadPlaylists() {
       return;
     }
 
-    grid.innerHTML = '';
+    grid.innerHTML = '<p class="liked-songs-note">Tracks are drawn from your Liked Songs — click any playlist to start.</p>';
     playlists.forEach(pl => {
-      const img     = pl.images && pl.images[0] ? pl.images[0].url : null;
-      const isOwned = pl.owner && pl.owner.id === state.userId;
-      const card    = document.createElement('div');
-      card.className = 'playlist-card' + (isOwned ? '' : ' not-owned');
+      const img  = pl.images && pl.images[0] ? pl.images[0].url : null;
+      const card = document.createElement('div');
+      card.className = 'playlist-card';
       card.innerHTML = `
         ${img
           ? `<img src="${img}" alt="${escapeHtml(pl.name)}" />`
           : `<div class="playlist-placeholder">🎵</div>`}
         <div class="playlist-name">${escapeHtml(pl.name)}</div>
-        ${!isOwned ? '<div class="playlist-badge">⚠️ not yours</div>' : ''}
       `;
-      if (isOwned) {
-        card.addEventListener('click', () => selectPlaylist(pl));
-      } else {
-        card.addEventListener('click', () =>
-          alert(`"${pl.name}" is owned by someone else (e.g. Spotify or another user).\n\nSpotify's API currently only allows reading tracks from playlists YOU created.\n\nPlease choose one of your own playlists.`)
-        );
-      }
+      card.addEventListener('click', () => selectPlaylist(pl));
       grid.appendChild(card);
     });
   } catch (err) {
@@ -203,25 +196,19 @@ async function loadPlaylists() {
   }
 }
 
-async function selectPlaylist(playlist) {
+async function selectPlaylist(_playlist) {
   showScreen('screen-setup');
   renderPlayerInputs(state.playerCount);
 
   try {
-    // Use the href Spotify gives us directly (avoids any URL construction issues)
-    const tracksHref = (playlist.tracks && playlist.tracks.href)
-      ? playlist.tracks.href + '?limit=100'
-      : `https://api.spotify.com/v1/playlists/${playlist.id}/tracks?limit=100`;
-
-    console.log('Fetching tracks from:', tracksHref);
-
-    const res = await fetch(tracksHref, {
+    // Spotify's development-mode apps cannot access /playlists/{id}/tracks.
+    // We load from /me/tracks (liked songs) which is always permitted.
+    const res = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
       headers: { Authorization: 'Bearer ' + state.accessToken },
     });
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      console.error('Tracks error response:', res.status, errData);
       throw new Error(`${errData?.error?.message || 'Unknown error'} (HTTP ${res.status})`);
     }
 
