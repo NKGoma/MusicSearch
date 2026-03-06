@@ -212,22 +212,27 @@ async function selectPlaylist(playlist) {
   if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'Loading tracks…'; }
 
   try {
+    // --- attempt 1: playlist object ---
     let items = null;
+    let usedFallback = false;
 
-    // Try the full playlist object (no fields filter — avoids stripping album sub-fields)
     const plRes = await fetch(
       `https://api.spotify.com/v1/playlists/${playlist.id}`,
       { headers: { Authorization: 'Bearer ' + state.accessToken } }
     );
-
     if (plRes.ok) {
       const plData = await plRes.json();
       items = plData.tracks?.items || [];
-    } else {
-      // Endpoint blocked or other error — silently fall back to liked songs.
-      // Do NOT call startLogin() here: the 403 is a permanent Spotify restriction,
-      // not an auth issue; re-logging in never fixes it and causes an infinite loop.
-      console.warn('Playlist fetch failed (' + plRes.status + '), using liked songs as fallback');
+    }
+
+    // --- attempt 2: liked songs (if playlist failed OR returned nothing) ---
+    if (!items || items.length === 0) {
+      if (plRes.ok) {
+        console.warn('Playlist returned 0 tracks, falling back to liked songs');
+      } else {
+        console.warn('Playlist fetch failed (' + plRes.status + '), falling back to liked songs');
+      }
+      usedFallback = true;
       const likedRes = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
         headers: { Authorization: 'Bearer ' + state.accessToken },
       });
@@ -239,9 +244,19 @@ async function selectPlaylist(playlist) {
       items = likedData.items || [];
     }
 
+    // --- filter & map ---
     const filtered = items.filter(i =>
       i && i.track && i.track.uri && i.track.album && !i.track.is_local
     );
+
+    if (filtered.length === 0) {
+      throw new Error(
+        usedFallback
+          ? 'No playable tracks found. Please add songs to your Liked Songs on Spotify, then try again.'
+          : 'No playable tracks found in this playlist.'
+      );
+    }
+
     state.tracks = shuffle(filtered.map(i => ({
       title:    i.track.name,
       artist:   i.track.artists.map(a => a.name).join(', '),
