@@ -125,6 +125,7 @@ h1 {
   background: var(--card);
   border-radius: 12px;
   overflow: hidden;
+  position: relative;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s;
   border: 2px solid transparent;
@@ -147,6 +148,16 @@ h1 {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.playlist-card.not-owned { opacity: 0.45; cursor: default; }
+.playlist-card.not-owned:hover { transform: none; box-shadow: none; border-color: transparent; }
+.playlist-badge {
+  background: rgba(0,0,0,0.75);
+  font-size: 11px;
+  text-align: center;
+  padding: 4px 6px;
+  color: #ffcc00;
 }
 
 .playlist-placeholder {

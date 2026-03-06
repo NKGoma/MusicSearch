@@ -17,6 +17,7 @@ const SCOPES = [
 /* ── Game state ─────────────────────────────────────────────────────────── */
 const state = {
   accessToken: '',
+  userId: '',
   players: [],            // [{ name, tokens }]
   currentPlayerIndex: 0,
   tracks: [],             // shuffled [{title, artist, year, uri, albumArt}]
@@ -141,6 +142,9 @@ async function init() {
     window.history.replaceState({}, document.title, window.location.pathname);
     try {
       state.accessToken = await exchangeToken(code);
+      // Fetch the user's own Spotify ID so we can flag playlists they don't own
+      const me = await spotifyFetch('GET', '/me');
+      state.userId = me.id;
       showScreen('screen-playlists');
       await loadPlaylists();
     } catch (err) {
@@ -172,16 +176,24 @@ async function loadPlaylists() {
 
     grid.innerHTML = '';
     playlists.forEach(pl => {
-      const img  = pl.images && pl.images[0] ? pl.images[0].url : null;
-      const card = document.createElement('div');
-      card.className = 'playlist-card';
+      const img     = pl.images && pl.images[0] ? pl.images[0].url : null;
+      const isOwned = pl.owner && pl.owner.id === state.userId;
+      const card    = document.createElement('div');
+      card.className = 'playlist-card' + (isOwned ? '' : ' not-owned');
       card.innerHTML = `
         ${img
           ? `<img src="${img}" alt="${escapeHtml(pl.name)}" />`
           : `<div class="playlist-placeholder">🎵</div>`}
         <div class="playlist-name">${escapeHtml(pl.name)}</div>
+        ${!isOwned ? '<div class="playlist-badge">⚠️ not yours</div>' : ''}
       `;
-      card.addEventListener('click', () => selectPlaylist(pl));
+      if (isOwned) {
+        card.addEventListener('click', () => selectPlaylist(pl));
+      } else {
+        card.addEventListener('click', () =>
+          alert(`"${pl.name}" is owned by someone else (e.g. Spotify or another user).\n\nSpotify's API currently only allows reading tracks from playlists YOU created.\n\nPlease choose one of your own playlists.`)
+        );
+      }
       grid.appendChild(card);
     });
   } catch (err) {
