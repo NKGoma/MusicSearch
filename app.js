@@ -21,12 +21,14 @@ const state = {
   userId: '',
   players: [],            // [{ name, tokens }]
   currentPlayerIndex: 0,
-  tracks: [],             // shuffled [{title, artist, year, uri, albumArt}]
-  currentTrackIndex: 0,
+  tracks: [],             // unused for game logic; kept for compatibility
+  currentTrackIndex: 0,   // turn counter
   revealed: false,
   isPlaying: false,
   deviceId: '',
   playerCount: 2,
+  playlistUri: '',        // "spotify:playlist:{id}" of chosen playlist
+  playlistStarted: false, // true after first PUT /me/player/play with context_uri
 };
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -179,24 +181,16 @@ async function loadPlaylists() {
 
     grid.innerHTML = '';
     playlists.forEach(pl => {
-      const img     = pl.images && pl.images[0] ? pl.images[0].url : null;
-      const isOwned = pl.owner && pl.owner.id === state.userId;
-      const card    = document.createElement('div');
-      card.className = 'playlist-card' + (isOwned ? '' : ' not-owned');
+      const img  = pl.images && pl.images[0] ? pl.images[0].url : null;
+      const card = document.createElement('div');
+      card.className = 'playlist-card';
       card.innerHTML = `
         ${img
           ? `<img src="${img}" alt="${escapeHtml(pl.name)}" />`
           : `<div class="playlist-placeholder">🎵</div>`}
         <div class="playlist-name">${escapeHtml(pl.name)}</div>
-        ${!isOwned ? '<div class="playlist-badge">⚠️ not yours</div>' : ''}
       `;
-      if (isOwned) {
-        card.addEventListener('click', () => selectPlaylist(pl));
-      } else {
-        card.addEventListener('click', () =>
-          alert(`"${pl.name}" is owned by someone else.\n\nSpotify only allows reading tracks from playlists you created.\n\nPlease choose one of your own playlists.`)
-        );
-      }
+      card.addEventListener('click', () => selectPlaylist(pl));
       grid.appendChild(card);
     });
   } catch (err) {
@@ -204,72 +198,11 @@ async function loadPlaylists() {
   }
 }
 
-async function selectPlaylist(playlist) {
+function selectPlaylist(playlist) {
+  state.playlistUri     = 'spotify:playlist:' + playlist.id;
+  state.playlistStarted = false;
   showScreen('screen-setup');
   renderPlayerInputs(state.playerCount);
-
-  const startBtn = $('btn-start-game');
-  if (startBtn) { startBtn.disabled = true; startBtn.textContent = 'Loading tracks…'; }
-
-  try {
-    // --- attempt 1: playlist object ---
-    let items = null;
-    let usedFallback = false;
-
-    const plRes = await fetch(
-      `https://api.spotify.com/v1/playlists/${playlist.id}`,
-      { headers: { Authorization: 'Bearer ' + state.accessToken } }
-    );
-    if (plRes.ok) {
-      const plData = await plRes.json();
-      items = plData.tracks?.items || [];
-    }
-
-    // --- attempt 2: liked songs (if playlist failed OR returned nothing) ---
-    if (!items || items.length === 0) {
-      if (plRes.ok) {
-        console.warn('Playlist returned 0 tracks, falling back to liked songs');
-      } else {
-        console.warn('Playlist fetch failed (' + plRes.status + '), falling back to liked songs');
-      }
-      usedFallback = true;
-      const likedRes = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
-        headers: { Authorization: 'Bearer ' + state.accessToken },
-      });
-      if (!likedRes.ok) {
-        const errData = await likedRes.json().catch(() => ({}));
-        throw new Error(`${errData?.error?.message || 'Unknown error'} (HTTP ${likedRes.status})`);
-      }
-      const likedData = await likedRes.json();
-      items = likedData.items || [];
-    }
-
-    // --- filter & map ---
-    const filtered = items.filter(i =>
-      i && i.track && i.track.uri && i.track.album && !i.track.is_local
-    );
-
-    if (filtered.length === 0) {
-      throw new Error(
-        usedFallback
-          ? 'No playable tracks found. Please add songs to your Liked Songs on Spotify, then try again.'
-          : 'No playable tracks found in this playlist.'
-      );
-    }
-
-    state.tracks = shuffle(filtered.map(i => ({
-      title:    i.track.name,
-      artist:   i.track.artists.map(a => a.name).join(', '),
-      year:     (i.track.album.release_date || '????').slice(0, 4),
-      uri:      i.track.uri,
-      albumArt: i.track.album.images?.[0]?.url ?? null,
-    })));
-  } catch (err) {
-    console.error('selectPlaylist error:', err);
-    alert('Could not load tracks: ' + err.message);
-  } finally {
-    if (startBtn) { startBtn.disabled = false; startBtn.textContent = 'Start Game ▶'; }
-  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -326,18 +259,26 @@ function showDeviceWarning() {
 }
 
 async function playCurrentSong() {
-  const track = state.tracks[state.currentTrackIndex];
-  if (!track) return;
-
   try {
     const devData = await spotifyFetch('GET', '/me/player/devices');
     const devices = devData.devices || [];
     const device  = devices.find(d => d.is_active) || devices[0];
 
     if (!device) { showDeviceWarning(); return; }
-
     state.deviceId = device.id;
-    await spotifyFetch('PUT', `/me/player/play?device_id=${state.deviceId}`, { uris: [track.uri] });
+
+    if (!state.playlistStarted) {
+      // First play: start the chosen playlist with shuffle
+      await spotifyFetch('PUT', `/me/player/play?device_id=${state.deviceId}`, {
+        context_uri: state.playlistUri,
+      });
+      await spotifyFetch('PUT', `/me/player/shuffle?state=true&device_id=${state.deviceId}`);
+      state.playlistStarted = true;
+    } else {
+      // Subsequent plays: resume (no body = resume current position)
+      await spotifyFetch('PUT', `/me/player/play?device_id=${state.deviceId}`);
+    }
+
     state.isPlaying = true;
     $('btn-play-pause').textContent = '⏸ Pause';
     $('device-warning').classList.add('hidden');
@@ -369,15 +310,17 @@ const App = {
   },
 
   backToPlaylists() {
-    state.tracks = [];
-    state.currentTrackIndex = 0;
+    state.playlistUri     = '';
+    state.playlistStarted = false;
+    state.currentPlayerIndex = 0;
+    state.currentTrackIndex  = 0;
     showScreen('screen-playlists');
     loadPlaylists();
   },
 
   startGame() {
-    if (state.tracks.length === 0) {
-      alert('Tracks are still loading — please wait a moment and try again.');
+    if (!state.playlistUri) {
+      alert('Please choose a playlist first.');
       return;
     }
     const players = [];
@@ -388,39 +331,49 @@ const App = {
     state.players = players;
     state.currentPlayerIndex = 0;
     state.currentTrackIndex  = 0;
-    state.isPlaying = false;
+    state.playlistStarted    = false;
+    state.isPlaying          = false;
 
     showScreen('screen-game');
     renderGameUI();
     playCurrentSong();
   },
 
-  reveal() {
+  async reveal() {
     if (state.revealed) return;
     state.revealed = true;
 
-    const track = state.tracks[state.currentTrackIndex];
-    $('reveal-year').textContent   = track.year;
-    $('reveal-title').textContent  = track.title;
-    $('reveal-artist').textContent = track.artist;
+    try {
+      const data  = await spotifyFetch('GET', '/me/player/currently-playing');
+      const track = data?.item;
+      $('reveal-year').textContent   = track ? (track.album?.release_date || '????').slice(0, 4) : '????';
+      $('reveal-title').textContent  = track?.name ?? 'Unknown';
+      $('reveal-artist').textContent = track ? track.artists.map(a => a.name).join(', ') : '';
+    } catch (err) {
+      $('reveal-year').textContent   = '????';
+      $('reveal-title').textContent  = 'Unknown';
+      $('reveal-artist').textContent = '';
+    }
 
-    const card = $('song-card');
-    card.classList.remove('mystery');
-    card.classList.add('revealed');
-
+    $('song-card').classList.remove('mystery');
+    $('song-card').classList.add('revealed');
     $('btn-reveal').classList.add('hidden');
     $('btn-next').classList.remove('hidden');
   },
 
-  nextPlayer() {
+  async nextPlayer() {
+    try {
+      await spotifyFetch('POST', `/me/player/next?device_id=${state.deviceId}`);
+      await new Promise(r => setTimeout(r, 700));
+    } catch (err) {
+      console.error('Skip error:', err);
+    }
     state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.players.length;
     state.currentTrackIndex++;
-    if (state.currentTrackIndex >= state.tracks.length) {
-      state.currentTrackIndex = 0;
-      state.tracks = shuffle(state.tracks);
-    }
+    state.revealed  = false;
+    state.isPlaying = true;
+    $('btn-play-pause').textContent = '⏸ Pause';
     renderGameUI();
-    playCurrentSong();
   },
 
   async togglePlayPause() {
@@ -437,20 +390,25 @@ const App = {
     }
   },
 
-  useToken() {
+  async useToken() {
     const player = state.players[state.currentPlayerIndex];
     if (player.tokens <= 0) { alert(`${player.name} has no tokens left!`); return; }
     if (!confirm(`Use one of ${player.name}'s tokens to skip this song?`)) return;
 
     player.tokens--;
-    updateTokenBar();
     state.currentTrackIndex++;
-    if (state.currentTrackIndex >= state.tracks.length) {
-      state.currentTrackIndex = 0;
-      state.tracks = shuffle(state.tracks);
-    }
+    updateTokenBar();
     resetSongCard();
-    playCurrentSong();
+
+    try {
+      await spotifyFetch('POST', `/me/player/next?device_id=${state.deviceId}`);
+      await new Promise(r => setTimeout(r, 700));
+      state.isPlaying = true;
+      $('btn-play-pause').textContent = '⏸ Pause';
+    } catch (err) {
+      console.error('Skip error:', err);
+      showDeviceWarning();
+    }
   },
 
   retryDevice() {
