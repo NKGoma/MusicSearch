@@ -206,9 +206,24 @@ async function selectPlaylist(playlist) {
   renderPlayerInputs(state.playerCount);
 
   try {
-    const data  = await spotifyFetch('GET',
-      `/playlists/${playlist.id}/tracks?limit=100`
-    );
+    // Use the href Spotify gives us directly (avoids any URL construction issues)
+    const tracksHref = (playlist.tracks && playlist.tracks.href)
+      ? playlist.tracks.href + '?limit=100'
+      : `https://api.spotify.com/v1/playlists/${playlist.id}/tracks?limit=100`;
+
+    console.log('Fetching tracks from:', tracksHref);
+
+    const res = await fetch(tracksHref, {
+      headers: { Authorization: 'Bearer ' + state.accessToken },
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      console.error('Tracks error response:', res.status, errData);
+      throw new Error(`${errData?.error?.message || 'Unknown error'} (HTTP ${res.status})`);
+    }
+
+    const data = await res.json();
     const items = (data.items || []).filter(i =>
       i && i.track && i.track.uri && i.track.album && !i.track.is_local
     );
@@ -220,7 +235,12 @@ async function selectPlaylist(playlist) {
       albumArt: i.track.album.images?.[0]?.url ?? null,
     })));
   } catch (err) {
-    alert('Could not load tracks: ' + err.message);
+    console.error('selectPlaylist error:', err);
+    alert(
+      'Could not load tracks: ' + err.message +
+      '\n\nTip: In your Spotify Developer Dashboard → your app → Settings,' +
+      '\nmake sure "Web API" is checked under "APIs/SDKs".'
+    );
   }
 }
 
