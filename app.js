@@ -177,18 +177,26 @@ async function loadPlaylists() {
       return;
     }
 
-    grid.innerHTML = '<p class="liked-songs-note">Tracks are drawn from your Liked Songs — click any playlist to start.</p>';
+    grid.innerHTML = '';
     playlists.forEach(pl => {
-      const img  = pl.images && pl.images[0] ? pl.images[0].url : null;
-      const card = document.createElement('div');
-      card.className = 'playlist-card';
+      const img     = pl.images && pl.images[0] ? pl.images[0].url : null;
+      const isOwned = pl.owner && pl.owner.id === state.userId;
+      const card    = document.createElement('div');
+      card.className = 'playlist-card' + (isOwned ? '' : ' not-owned');
       card.innerHTML = `
         ${img
           ? `<img src="${img}" alt="${escapeHtml(pl.name)}" />`
           : `<div class="playlist-placeholder">🎵</div>`}
         <div class="playlist-name">${escapeHtml(pl.name)}</div>
+        ${!isOwned ? '<div class="playlist-badge">⚠️ not yours</div>' : ''}
       `;
-      card.addEventListener('click', () => selectPlaylist(pl));
+      if (isOwned) {
+        card.addEventListener('click', () => selectPlaylist(pl));
+      } else {
+        card.addEventListener('click', () =>
+          alert(`"${pl.name}" is owned by someone else.\n\nSpotify only allows reading tracks from playlists you created.\n\nPlease choose one of your own playlists.`)
+        );
+      }
       grid.appendChild(card);
     });
   } catch (err) {
@@ -196,20 +204,21 @@ async function loadPlaylists() {
   }
 }
 
-async function selectPlaylist(_playlist) {
+async function selectPlaylist(playlist) {
   showScreen('screen-setup');
   renderPlayerInputs(state.playerCount);
 
   try {
-    // Spotify's development-mode apps cannot access /playlists/{id}/tracks.
-    // We load from /me/tracks (liked songs) which is always permitted.
-    const res = await fetch('https://api.spotify.com/v1/me/tracks?limit=50', {
+    const tracksUrl = playlist.tracks?.href
+      ? playlist.tracks.href + '?limit=100'
+      : `https://api.spotify.com/v1/playlists/${playlist.id}/tracks?limit=100`;
+
+    const res = await fetch(tracksUrl, {
       headers: { Authorization: 'Bearer ' + state.accessToken },
     });
 
     if (res.status === 403) {
-      // Token is missing user-library-read scope — re-authorize to get it.
-      alert('Spotify needs one more permission. You\'ll be taken to log in again — this only happens once.');
+      alert("Spotify needs permission to read this playlist. You'll be taken to log in again.");
       startLogin();
       return;
     }
