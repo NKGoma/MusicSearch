@@ -63,6 +63,7 @@ async function startLogin() {
     redirect_uri:          REDIRECT_URI,
     code_challenge_method: 'S256',
     code_challenge:        challenge,
+    show_dialog:           'true',
   });
   window.location = 'https://accounts.spotify.com/authorize?' + params;
 }
@@ -237,11 +238,7 @@ async function selectPlaylist(playlist) {
     })));
   } catch (err) {
     console.error('selectPlaylist error:', err);
-    alert(
-      'Could not load tracks: ' + err.message +
-      '\n\nTip: In your Spotify Developer Dashboard → your app → Settings,' +
-      '\nmake sure "Web API" is checked under "APIs/SDKs".'
-    );
+    alert('Could not load tracks: ' + err.message);
   }
 }
 
