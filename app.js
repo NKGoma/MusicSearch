@@ -103,7 +103,10 @@ async function spotifyFetch(method, path, body) {
   const res = await fetch('https://api.spotify.com/v1' + path, opts);
   if (res.status === 204) return {};
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+  if (!res.ok) {
+    const msg = data?.error?.message || 'Unknown error';
+    throw new Error(`${msg} (HTTP ${res.status})`);
+  }
   return data;
 }
 
@@ -194,7 +197,9 @@ async function selectPlaylist(playlist) {
     const data  = await spotifyFetch('GET',
       `/playlists/${playlist.id}/tracks?limit=100`
     );
-    const items = (data.items || []).filter(i => i && i.track && i.track.uri);
+    const items = (data.items || []).filter(i =>
+      i && i.track && i.track.uri && i.track.album && !i.track.is_local
+    );
     state.tracks = shuffle(items.map(i => ({
       title:    i.track.name,
       artist:   i.track.artists.map(a => a.name).join(', '),
