@@ -84,6 +84,7 @@ async function exchangeToken(code) {
   });
   const data = await res.json();
   if (data.error) throw new Error(data.error_description || data.error);
+  console.log('Token granted scopes:', data.scope);
   return data.access_token;
 }
 
