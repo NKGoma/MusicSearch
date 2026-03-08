@@ -307,7 +307,7 @@ function resetSongCard() {
   card.classList.add('mystery');
   $('btn-reveal').classList.remove('hidden');
   $('btn-next').classList.add('hidden');
-  $('btn-play-pause').textContent = '⏸ Pause';
+  $('btn-play-pause').textContent = state.isPlaying ? '⏸ Pause' : '▶ Play';
   state.revealed = false;
   const panel = $('post-reveal-actions');
   if (panel) { panel.innerHTML = ''; panel.classList.add('hidden'); }
@@ -447,7 +447,7 @@ const App = {
   async togglePlayPause() {
     try {
       if (state.isPlaying) {
-        await spotifyFetch('PUT', `/me/player/pause?device_id=${state.deviceId}`);
+        await spotifyFetch('PUT', '/me/player/pause');
         state.isPlaying = false;
         $('btn-play-pause').textContent = '▶ Play';
       } else {
