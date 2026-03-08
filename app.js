@@ -267,6 +267,40 @@ function updateTokenBar() {
   `).join('');
 }
 
+function renderPostRevealActions() {
+  const panel = $('post-reveal-actions');
+  if (!panel) return;
+
+  const currentPlayer = state.players[state.currentPlayerIndex];
+
+  let html = `
+    <div class="pra-correct">
+      <span class="pra-label">Did <strong>${escapeHtml(currentPlayer.name)}</strong> guess correctly?</span>
+      <button class="btn btn-green pra-btn" onclick="App.markCorrect(this)">✓ Yes — +1 token</button>
+    </div>
+  `;
+
+  const others = state.players
+    .map((p, i) => ({ p, i }))
+    .filter(({ i }) => i !== state.currentPlayerIndex);
+
+  if (others.length > 0) {
+    html += `<div class="pra-others"><span class="pra-label">Others — use a token:</span>`;
+    others.forEach(({ p, i }) => {
+      html += `
+        <button class="btn btn-dim pra-btn pra-other-btn" ${p.tokens <= 0 ? 'disabled' : ''}
+                onclick="App.spendToken(${i}, this)">
+          ${escapeHtml(p.name)} 🪙 ${p.tokens}
+        </button>
+      `;
+    });
+    html += `</div>`;
+  }
+
+  panel.innerHTML = html;
+  panel.classList.remove('hidden');
+}
+
 function resetSongCard() {
   const card = $('song-card');
   card.classList.remove('revealed');
@@ -275,6 +309,8 @@ function resetSongCard() {
   $('btn-next').classList.add('hidden');
   $('btn-play-pause').textContent = '⏸ Pause';
   state.revealed = false;
+  const panel = $('post-reveal-actions');
+  if (panel) { panel.innerHTML = ''; panel.classList.add('hidden'); }
 }
 
 function showDeviceWarning() {
@@ -390,6 +426,7 @@ const App = {
     $('song-card').classList.add('revealed');
     $('btn-reveal').classList.add('hidden');
     $('btn-next').classList.remove('hidden');
+    renderPostRevealActions();
   },
 
   async nextPlayer() {
@@ -445,6 +482,24 @@ const App = {
   retryDevice() {
     $('device-warning').classList.add('hidden');
     playCurrentSong();
+  },
+
+  // Current player guessed correctly — award +1 token
+  markCorrect(btn) {
+    state.players[state.currentPlayerIndex].tokens++;
+    updateTokenBar();
+    btn.disabled = true;
+    btn.textContent = '✓ Token awarded!';
+  },
+
+  // Another player spends a token to claim/attack
+  spendToken(playerIndex, btn) {
+    const player = state.players[playerIndex];
+    if (player.tokens <= 0) return;
+    player.tokens--;
+    updateTokenBar();
+    btn.disabled = true;
+    btn.textContent = `${escapeHtml(player.name)} 🪙 ${player.tokens} (used)`;
   },
 };
 
