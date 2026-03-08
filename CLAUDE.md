@@ -1,27 +1,26 @@
 # MusicSearch — Claude Code Instructions
 
-## Git workflow (REQUIRED on every push)
+## Git workflow (REQUIRED)
 
-The working branch is `claude/music-timeline-game-c76ZC`.
-Local branch `main` is configured to track it.
+Always work on the `claude/music-timeline-game-c76ZC` branch — never commit to `main`.
 
-**Before every push, always run:**
-```
-git pull --rebase origin claude/music-timeline-game-c76ZC
-```
-Then push with:
-```
-git push origin HEAD:claude/music-timeline-game-c76ZC
+```bash
+# Before starting work, make sure the branch is current:
+git pull origin claude/music-timeline-game-c76ZC
+
+# Commit normally, then push:
+git push -u origin claude/music-timeline-game-c76ZC
 ```
 
-This prevents the "non-fast-forward" rejection that happens after PRs are merged on GitHub.
+`main` tracks `origin/main` and must never be committed to directly.
+If you find yourself on `main`, switch back: `git checkout claude/music-timeline-game-c76ZC`
 
 ## Cache busting
 
 - `app.js` uses `?v=N` in index.html — increment N on every change to app.js
 - `style.css` uses `?v=N` in index.html — increment N on every change to style.css
 
-Current versions: style.css?v=2, app.js?v=12
+Current versions: style.css?v=2, app.js?v=13
 
 ## Project structure
 
