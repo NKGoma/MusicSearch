@@ -459,6 +459,7 @@ const App = {
         $('btn-play-pause').textContent = '⏸ Pause';
       }
     } catch (err) {
+      console.error('togglePlayPause error:', err.message, '| isPlaying was:', !state.isPlaying, '| deviceId:', state.deviceId);
       showDeviceWarning();
     }
   },
