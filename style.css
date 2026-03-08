@@ -172,6 +172,31 @@ h1 {
 
 .loading-msg { color: var(--dim); text-align: center; padding: 48px; }
 
+/* ── Playlist search ─────────────────────────────────────────────────────── */
+.playlist-search-bar {
+  width: 100%;
+  max-width: 900px;
+  padding: 0 0 16px;
+}
+.playlist-search-input {
+  width: 100%;
+  background: #222;
+  color: var(--white);
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+.playlist-search-input:focus {
+  border-color: var(--accent);
+}
+.playlist-search-input::-webkit-search-cancel-button {
+  filter: invert(1);
+}
+
 /* ── Player setup screen ─────────────────────────────────────────────────── */
 #screen-setup .center-card { text-align: left; }
 #screen-setup h2 { text-align: center; margin-bottom: 24px; font-size: 28px; }

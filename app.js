@@ -31,6 +31,8 @@ const state = {
   playlistStarted: false, // true after first PUT /me/player/play with context_uri
 };
 
+let allPlaylists = []; // all fetched playlists; used by client-side search
+
 /* ═══════════════════════════════════════════════════════════════════════════
    PKCE OAUTH — no server or client secret needed
 ═══════════════════════════════════════════════════════════════════════════ */
@@ -166,33 +168,54 @@ async function init() {
    PLAYLIST SCREEN
 ═══════════════════════════════════════════════════════════════════════════ */
 
+function renderPlaylistGrid(playlists) {
+  const grid = $('playlist-grid');
+  if (playlists.length === 0) {
+    grid.innerHTML = '<p class="loading-msg">No playlists match your search.</p>';
+    return;
+  }
+  grid.innerHTML = '';
+  playlists.forEach(pl => {
+    const img  = pl.images && pl.images[0] ? pl.images[0].url : null;
+    const card = document.createElement('div');
+    card.className = 'playlist-card';
+    card.innerHTML = `
+      ${img
+        ? `<img src="${img}" alt="${escapeHtml(pl.name)}" />`
+        : `<div class="playlist-placeholder">🎵</div>`}
+      <div class="playlist-name">${escapeHtml(pl.name)}</div>
+    `;
+    card.addEventListener('click', () => selectPlaylist(pl));
+    grid.appendChild(card);
+  });
+}
+
 async function loadPlaylists() {
   const grid = $('playlist-grid');
   grid.innerHTML = '<p class="loading-msg">Loading your playlists…</p>';
 
-  try {
-    const data = await spotifyFetch('GET', '/me/playlists?limit=50');
-    const playlists = (data.items || []).filter(Boolean);
+  const searchInput = $('playlist-search');
+  if (searchInput) searchInput.value = '';
 
-    if (playlists.length === 0) {
+  try {
+    const collected = [];
+    const BASE = 'https://api.spotify.com/v1';
+    let path = '/me/playlists?limit=50';
+
+    while (path) {
+      const data = await spotifyFetch('GET', path);
+      (data.items || []).filter(Boolean).forEach(pl => collected.push(pl));
+      path = data.next ? data.next.slice(BASE.length) : null;
+    }
+
+    allPlaylists = collected;
+
+    if (allPlaylists.length === 0) {
       grid.innerHTML = '<p class="loading-msg">No playlists found.</p>';
       return;
     }
 
-    grid.innerHTML = '';
-    playlists.forEach(pl => {
-      const img  = pl.images && pl.images[0] ? pl.images[0].url : null;
-      const card = document.createElement('div');
-      card.className = 'playlist-card';
-      card.innerHTML = `
-        ${img
-          ? `<img src="${img}" alt="${escapeHtml(pl.name)}" />`
-          : `<div class="playlist-placeholder">🎵</div>`}
-        <div class="playlist-name">${escapeHtml(pl.name)}</div>
-      `;
-      card.addEventListener('click', () => selectPlaylist(pl));
-      grid.appendChild(card);
-    });
+    renderPlaylistGrid(allPlaylists);
   } catch (err) {
     grid.innerHTML = `<p class="loading-msg">Error loading playlists: ${err.message}</p>`;
   }
@@ -307,6 +330,14 @@ const App = {
     const next = Math.max(2, Math.min(10, state.playerCount + delta));
     state.playerCount = next;
     renderPlayerInputs(next);
+  },
+
+  filterPlaylists() {
+    const query = ($('playlist-search')?.value ?? '').trim().toLowerCase();
+    const filtered = query
+      ? allPlaylists.filter(pl => pl.name.toLowerCase().includes(query))
+      : allPlaylists;
+    renderPlaylistGrid(filtered);
   },
 
   backToPlaylists() {
