@@ -451,9 +451,7 @@ const App = {
         state.isPlaying = false;
         $('btn-play-pause').textContent = '▶ Play';
       } else {
-        await spotifyFetch('PUT', `/me/player/play?device_id=${state.deviceId}`, {});
-        state.isPlaying = true;
-        $('btn-play-pause').textContent = '⏸ Pause';
+        await playCurrentSong();
       }
     } catch (err) {
       console.error('togglePlayPause error:', err.message, '| isPlaying was:', !state.isPlaying, '| deviceId:', state.deviceId);
