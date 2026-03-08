@@ -447,14 +447,11 @@ const App = {
   async togglePlayPause() {
     try {
       if (state.isPlaying) {
-        await spotifyFetch('PUT', '/me/player/pause');
+        await spotifyFetch('PUT', `/me/player/pause?device_id=${state.deviceId}`);
         state.isPlaying = false;
         $('btn-play-pause').textContent = '▶ Play';
       } else {
-        const resumePath = state.deviceId
-          ? `/me/player/play?device_id=${state.deviceId}`
-          : '/me/player/play';
-        await spotifyFetch('PUT', resumePath);
+        await spotifyFetch('PUT', `/me/player/play?device_id=${state.deviceId}`, {});
         state.isPlaying = true;
         $('btn-play-pause').textContent = '⏸ Pause';
       }
