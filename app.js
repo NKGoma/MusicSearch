@@ -24,7 +24,6 @@ const state = {
   tracks: [],             // unused for game logic; kept for compatibility
   currentTrackIndex: 0,   // turn counter
   revealed: false,
-  isPlaying: false,
   deviceId: '',
   playerCount: 2,
   playlistUri: '',        // "spotify:playlist:{id}" of chosen playlist
@@ -303,7 +302,6 @@ function resetSongCard() {
   card.classList.add('mystery');
   $('btn-reveal').classList.remove('hidden');
   $('btn-next').classList.add('hidden');
-  $('btn-play-pause').textContent = state.isPlaying ? '⏸ Pause' : '▶ Play';
   state.revealed = false;
   const panel = $('post-reveal-actions');
   if (panel) { panel.innerHTML = ''; panel.classList.add('hidden'); }
@@ -334,8 +332,6 @@ async function playCurrentSong() {
       await spotifyFetch('PUT', `/me/player/play?device_id=${state.deviceId}`);
     }
 
-    state.isPlaying = true;
-    $('btn-play-pause').textContent = '⏸ Pause';
     $('device-warning').classList.add('hidden');
   } catch (err) {
     console.error('Play error:', err);
@@ -395,7 +391,6 @@ const App = {
     state.currentPlayerIndex = 0;
     state.currentTrackIndex  = 0;
     state.playlistStarted    = false;
-    state.isPlaying          = false;
 
     showScreen('screen-game');
     renderGameUI();
@@ -435,29 +430,7 @@ const App = {
     state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.players.length;
     state.currentTrackIndex++;
     state.revealed  = false;
-    state.isPlaying = true;
-    $('btn-play-pause').textContent = '⏸ Pause';
     renderGameUI();
-  },
-
-  async togglePlayPause() {
-    try {
-      if (state.isPlaying) {
-        await spotifyFetch('PUT', '/me/player/pause');
-        state.isPlaying = false;
-        $('btn-play-pause').textContent = '▶ Play';
-      } else {
-        const playback = await spotifyFetch('GET', '/me/player');
-        const deviceId = playback?.device?.id || state.deviceId;
-        await spotifyFetch('PUT', '/me/player/play?device_id=' + deviceId);
-        state.deviceId = deviceId;
-        state.isPlaying = true;
-        $('btn-play-pause').textContent = '⏸ Pause';
-      }
-    } catch (err) {
-      console.error('togglePlayPause error:', err.message);
-      showDeviceWarning();
-    }
   },
 
   async useToken() {
@@ -473,8 +446,6 @@ const App = {
     try {
       await spotifyFetch('POST', `/me/player/next?device_id=${state.deviceId}`);
       await new Promise(r => setTimeout(r, 700));
-      state.isPlaying = true;
-      $('btn-play-pause').textContent = '⏸ Pause';
     } catch (err) {
       console.error('Skip error:', err);
       showDeviceWarning();
