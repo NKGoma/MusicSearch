@@ -20,7 +20,7 @@ If you find yourself on `main`, switch back: `git checkout claude/music-timeline
 - `app.js` uses `?v=N` in index.html — increment N on every change to app.js
 - `style.css` uses `?v=N` in index.html — increment N on every change to style.css
 
-Current versions: style.css?v=2, app.js?v=16
+Current versions: style.css?v=2, app.js?v=17
 
 ## Project structure
 

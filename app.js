@@ -99,14 +99,10 @@ async function exchangeToken(code) {
 ═══════════════════════════════════════════════════════════════════════════ */
 
 async function spotifyFetch(method, path, body) {
-  const opts = {
-    method,
-    headers: {
-      Authorization: 'Bearer ' + state.accessToken,
-      'Content-Type': 'application/json',
-    },
-  };
-  if (body) opts.body = JSON.stringify(body);
+  const headers = { Authorization: 'Bearer ' + state.accessToken };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  const opts = { method, headers };
+  if (body !== undefined) opts.body = JSON.stringify(body);
 
   const res = await fetch('https://api.spotify.com/v1' + path, opts);
   if (res.status === 204) return {};
@@ -451,10 +447,12 @@ const App = {
         state.isPlaying = false;
         $('btn-play-pause').textContent = '▶ Play';
       } else {
-        await playCurrentSong();
+        await spotifyFetch('PUT', '/me/player/play');
+        state.isPlaying = true;
+        $('btn-play-pause').textContent = '⏸ Pause';
       }
     } catch (err) {
-      console.error('togglePlayPause error:', err.message, '| isPlaying was:', !state.isPlaying, '| deviceId:', state.deviceId);
+      console.error('togglePlayPause error:', err.message);
       showDeviceWarning();
     }
   },
