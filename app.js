@@ -447,7 +447,10 @@ const App = {
         state.isPlaying = false;
         $('btn-play-pause').textContent = '▶ Play';
       } else {
-        await spotifyFetch('PUT', '/me/player/play?device_id=' + state.deviceId);
+        const playback = await spotifyFetch('GET', '/me/player');
+        const deviceId = playback?.device?.id || state.deviceId;
+        await spotifyFetch('PUT', '/me/player/play?device_id=' + deviceId);
+        state.deviceId = deviceId;
         state.isPlaying = true;
         $('btn-play-pause').textContent = '⏸ Pause';
       }
